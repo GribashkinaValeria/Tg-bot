@@ -2,12 +2,13 @@ import datetime
 import asyncio
 import logging
 import requests
+import os
 from telebot.async_telebot import AsyncTeleBot
 from telebot import types
 from dotenv import load_dotenv
 
 load_dotenv()
-bot = AsyncTeleBot('7683563071:AAFxJh5hbr7zSt0YVxjrLBT1MD5CzMoC744')
+bot = AsyncTeleBot(os.getenv('TELEGRAM_BOT_TOKEN'))
 user_data = {}
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +25,7 @@ async def deepl_translate(text: str, target_lang: str) -> str:
     api_key = "185b0fbe-7484-4d0b-8bf4-8bd28c5d4fcb:fx"
     url = "https://api-free.deepl.com/v2/translate"
     params = {
-        "auth_key": api_key,
+        "auth_key": "os.getenv('DEEPL_API_KEY')",
         "text": text,
         "target_lang": target_lang
     }
