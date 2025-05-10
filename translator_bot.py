@@ -4,14 +4,17 @@ import logging
 import aiohttp
 import config
 
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 
 # Инициализация бота
 bot = Bot(token=config.TELEGRAM_TOKEN)
 dp = Dispatcher()
 user_data = {}
+
 
 # Настройка логирования
 logging.basicConfig(
