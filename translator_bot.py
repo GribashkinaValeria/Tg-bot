@@ -4,40 +4,14 @@ import logging
 import aiohttp
 import config
 
-
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-
-# Проверка конфигурации
-try:
-    if not hasattr(config, 'TELEGRAM_TOKEN'):
-        raise ValueError(
-            "TELEGRAM_TOKEN не найден в config.py\n"
-            "Добавьте: TELEGRAM_TOKEN = 'ваш_токен'"
-        )
-    if not config.TELEGRAM_TOKEN:
-        raise ValueError("TELEGRAM_TOKEN пустой в config.py")
-
-    if not hasattr(config, 'DEEPL_API_KEY'):
-        raise ValueError(
-            "DEEPL_API_KEY не найден в config.py\n"
-            "Добавьте: DEEPL_API_KEY = 'ваш_ключ'\n"
-            "Получить ключ: https://www.deepl.com/pro-api"
-        )
-    if not config.DEEPL_API_KEY:
-        raise ValueError("DEEPL_API_KEY пустой в config.py")
-
-    bot = Bot(token=config.TELEGRAM_TOKEN)
-except Exception as e:
-    print(f"Ошибка конфигурации: {e}")
-    exit(1)
-
-
+# Инициализация бота
+bot = Bot(token=config.TELEGRAM_TOKEN)
 dp = Dispatcher()
 user_data = {}
-
 
 # Настройка логирования
 logging.basicConfig(
@@ -50,8 +24,8 @@ lang_names = {'ru': 'Русский', 'en': 'English'}
 logger.info("Bot configuration started at: %s", current_datetime)
 
 
+# Перевод текста через DeepL API
 async def deepl_translate(text: str, target_lang: str) -> str:
-    """Перевод текста через DeepL API."""
     url = "https://api-free.deepl.com/v2/translate"
     params = {
         "auth_key": config.DEEPL_API_KEY,
@@ -207,19 +181,10 @@ async def callback_handler(call: types.CallbackQuery):
 
 # Запуск бота
 async def main():
-    try:
-        logger.info("Starting bot...")
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error("Bot error: %s", e)
-    finally:
-        await bot.session.close()
+    logger.info("Starting bot...")
+    await dp.start_polling(bot)
+    await bot.session.close()
 
 
 if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    except Exception as e:
-        logger.error("Fatal error: %s", e)
+    asyncio.run(main())
