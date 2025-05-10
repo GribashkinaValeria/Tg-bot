@@ -1,17 +1,44 @@
-import datetime
 import asyncio
+import datetime
 import logging
-import requests
+
+import aiohttp
+import config
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-from telebot.async_telebot import AsyncTeleBot
-from telebot import types
-from dotenv import load_dotenv
+# Проверка конфигурации
+try:
+    if not hasattr(config, 'TELEGRAM_TOKEN'):
+        raise ValueError(
+            "TELEGRAM_TOKEN не найден в config.py\n"
+            "Добавьте: TELEGRAM_TOKEN = 'ваш_токен'"
+        )
+    if not config.TELEGRAM_TOKEN:
+        raise ValueError("TELEGRAM_TOKEN пустой в config.py")
+
+    if not hasattr(config, 'DEEPL_API_KEY'):
+        raise ValueError(
+            "DEEPL_API_KEY не найден в config.py\n"
+            "Добавьте: DEEPL_API_KEY = 'ваш_ключ'\n"
+            "Получить ключ: https://www.deepl.com/pro-api"
+        )
+    if not config.DEEPL_API_KEY:
+        raise ValueError("DEEPL_API_KEY пустой в config.py")
+
+    bot = Bot(token=config.TELEGRAM_TOKEN)
+except Exception as e:
+    print(f"Ошибка конфигурации: {e}")
+    exit(1)
 
 
-load_dotenv()
-bot = AsyncTeleBot('7683563071:AAFxJh5hbr7zSt0YVxjrLBT1MD5CzMoC744')
+dp = Dispatcher()
 user_data = {}
+
+
+# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
@@ -19,52 +46,57 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 current_datetime = datetime.datetime.now()
 lang_names = {'ru': 'Русский', 'en': 'English'}
-logger.info("Bot started at: %s", current_datetime)
+logger.info("Bot configuration started at: %s", current_datetime)
 
 
-# Использование DeepL API для перевода
 async def deepl_translate(text: str, target_lang: str) -> str:
-    api_key = "185b0fbe-7484-4d0b-8bf4-8bd28c5d4fcb:fx"
+    """Перевод текста через DeepL API."""
     url = "https://api-free.deepl.com/v2/translate"
     params = {
-        "auth_key": api_key,
+        "auth_key": config.DEEPL_API_KEY,
         "text": text,
         "target_lang": target_lang
     }
 
-    response = requests.post(url, data=params, timeout=10)
-    if response.status_code != 200:
-        logger.error(f"DeepL API error: {response.status_code}")
-        return f"Ошибка перевода: статус {response.status_code}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=params) as response:
+                if response.status != 200:
+                    error = await response.text()
+                    logger.error(
+                        "DeepL error: %s - %s", response.status, error
+                    )
+                    return f"Ошибка перевода (статус {response.status})"
 
-    data = response.json()
-    if not data or "translations" not in data:
-        logger.error("Invalid DeepL response format")
-        return "Ошибка: неверный формат ответа"
-
-    translations = data["translations"]
-    if not translations or "text" not in translations[0]:
-        logger.error("No translation in response")
-        return "Ошибка: перевод отсутствует"
-
-    return translations[0]["text"]
+                data = await response.json()
+                return data['translations'][0]['text']
+    except Exception as e:
+        logger.error("Translation error: %s", e)
+        return "Ошибка при переводе"
 
 
-# Обработчик для определения языка
 def detect_language(text: str) -> str:
-    latin = sum(1 for c in text if 'a' <= c.lower() <= 'z')
-    cyrillic = sum(1 for c in text if ('а' <= c.lower() <= 'я') or c in 'ёЁ')
-    return "EN" if latin > cyrillic else "RU"
+    """Определение языка текста."""
+    try:
+        latin = sum(1 for c in text if 'a' <= c.lower() <= 'z')
+        cyrillic = sum(1 for c in text if 'а' <= c.lower() <= 'я')
+        return "EN" if latin > cyrillic else "RU"
+    except Exception as e:
+        logger.error("Language detection error: %s", e)
+        return "EN"
 
 
-# Обработчик команды /start
-@bot.message_handler(commands=['start'])
-async def start_command(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_help = types.InlineKeyboardButton('Help', callback_data='help')
-    btn_lang = types.InlineKeyboardButton('Language', callback_data='language')
-    markup.add(btn_help, btn_lang)
-
+@dp.message(Command("start"))
+async def start_command(message: types.Message):
+    """Обработчик команды /start."""
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Help', callback_data='help'),
+                InlineKeyboardButton(text='Language', callback_data='language')
+            ]
+        ]
+    )
     start_text = (
                 'Привет!👐🏻\n'
                 'Это телеграм-бот, который поможет тебе\n'
@@ -77,16 +109,19 @@ async def start_command(message):
                 'with community translation in the medical field🩺🧪\n'
                 'Choose the necessary function📝\n'
     )
-    await bot.send_message(message.chat.id, start_text, reply_markup=markup)
+    await message.answer(start_text, reply_markup=markup)
 
 
-# Обработчик команды /help
-@bot.message_handler(commands=['help'])
-async def help_command(message):
-    markup = types.InlineKeyboardMarkup()
-    btn_back = types.InlineKeyboardButton('Back', callback_data='back')
-    markup.add(btn_back)
-
+@dp.message(Command("help"))
+async def help_command(message: types.Message):
+    """Обработчик команды /help."""
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Back', callback_data='back')
+            ]
+        ]
+    )
     help_text = (
                 "Как работает телеграм-бот?\n💡"
 
@@ -108,28 +143,35 @@ async def help_command(message):
                 "📌After completing the translation "
                 "you can enter a new request.\n"
     )
-    await bot.send_message(message.chat.id, help_text, reply_markup=markup)
+    await message.answer(help_text, reply_markup=markup)
 
 
-# Обработчик команды /language
-@bot.message_handler(commands=['language'])
-async def language_command(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_ru = types.InlineKeyboardButton('🇷🇺 Русский', callback_data='lang_ru')
-    btn_en = types.InlineKeyboardButton('🇬🇧 English', callback_data='lang_en')
-    btn_back = types.InlineKeyboardButton('Back', callback_data='back')
-    markup.add(btn_ru, btn_en, btn_back)
+@dp.message(Command("language"))
+async def language_command(message: types.Message):
+    """Обработчик команды /language."""
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='🇷🇺 Русский',
+                                     callback_data='lang_ru'),
+                InlineKeyboardButton(text='🇬🇧 English',
+                                     callback_data='lang_en')
+            ],
+            [
+                InlineKeyboardButton(text='Back', callback_data='back')
+            ]
+        ]
+    )
+    await message.answer(
+        "Выберите язык / Choose language:", reply_markup=markup
+    )
 
-    lang_text = "Выберите язык / Choose language"
-    await bot.send_message(message.chat.id, lang_text, reply_markup=markup)
 
-
-# Перевод текста
-@bot.message_handler(content_types=['text'])
-async def handle_text(message):
+@dp.message()
+async def handle_text(message: types.Message):
+    """Обработка текстовых сообщений."""
     if not message.text or not message.text.strip():
-        await bot.send_message(message.chat.id, "Пожалуйста, введите текст")
-        return
+        return await message.answer("Пожалуйста, введите текст")
 
     text = message.text.strip()
     source_lang = detect_language(text)
@@ -137,15 +179,19 @@ async def handle_text(message):
 
     translated = await deepl_translate(text, target_lang)
     response = (
-        f"🔹 Исходный ({lang_names[source_lang.lower()]}): {text}\n\n"
-        f"🔸 Перевод ({lang_names[target_lang.lower()]}): {translated}"
+        f"🔹 Original ("
+        f"{lang_names.get(source_lang.lower(), source_lang)}):\n"
+        f"{text}\n\n"
+        f"🔸 Translation ("
+        f"{lang_names.get(target_lang.lower(), target_lang)}):\n"
+        f"{translated}"
     )
-    await bot.send_message(message.chat.id, response)
+    await message.answer(response)
 
 
-# Обработчик кнопок
-@bot.callback_query_handler(func=lambda call: True)
-async def callback_handler(call):
+@dp.callback_query()
+async def callback_handler(call: types.CallbackQuery):
+    """Обработчик callback-запросов."""
     if call.data == 'help':
         await help_command(call.message)
     elif call.data == 'language':
@@ -155,14 +201,24 @@ async def callback_handler(call):
     elif call.data.startswith('lang_'):
         lang = call.data.split('_')[1]
         user_data[call.from_user.id] = {'lang': lang}
-        await bot.answer_callback_query(call.id, f"Язык: {lang_names[lang]}")
+        await call.answer(f"Язык установлен: {lang_names.get(lang, lang)}")
 
 
-# Запуск самого бота
 async def main():
-    logger.info("Starting bot...")
-    await bot.polling(none_stop=True)
+    """Основная функция запуска бота."""
+    try:
+        logger.info("Starting bot...")
+        await dp.start_polling(bot)
+    except Exception as e:
+        logger.error("Bot error: %s", e)
+    finally:
+        await bot.session.close()
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error("Fatal error: %s", e)
