@@ -75,8 +75,8 @@ async def deepl_translate(text: str, target_lang: str) -> str:
         return "Ошибка при переводе"
 
 
+# Определение языка текста
 def detect_language(text: str) -> str:
-    """Определение языка текста."""
     try:
         latin = sum(1 for c in text if 'a' <= c.lower() <= 'z')
         cyrillic = sum(1 for c in text if 'а' <= c.lower() <= 'я')
@@ -86,9 +86,9 @@ def detect_language(text: str) -> str:
         return "EN"
 
 
+# Обработчик команды /start
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
-    """Обработчик команды /start."""
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -112,9 +112,9 @@ async def start_command(message: types.Message):
     await message.answer(start_text, reply_markup=markup)
 
 
+# Обработчик команды /help
 @dp.message(Command("help"))
 async def help_command(message: types.Message):
-    """Обработчик команды /help."""
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -146,9 +146,9 @@ async def help_command(message: types.Message):
     await message.answer(help_text, reply_markup=markup)
 
 
+# Обработчик команды /language
 @dp.message(Command("language"))
 async def language_command(message: types.Message):
-    """Обработчик команды /language."""
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -167,9 +167,9 @@ async def language_command(message: types.Message):
     )
 
 
+# Перевод тексте
 @dp.message()
 async def handle_text(message: types.Message):
-    """Обработка текстовых сообщений."""
     if not message.text or not message.text.strip():
         return await message.answer("Пожалуйста, введите текст")
 
@@ -189,9 +189,9 @@ async def handle_text(message: types.Message):
     await message.answer(response)
 
 
+# Обработчик запросов
 @dp.callback_query()
 async def callback_handler(call: types.CallbackQuery):
-    """Обработчик callback-запросов."""
     if call.data == 'help':
         await help_command(call.message)
     elif call.data == 'language':
@@ -204,8 +204,8 @@ async def callback_handler(call: types.CallbackQuery):
         await call.answer(f"Язык установлен: {lang_names.get(lang, lang)}")
 
 
+# Запуск бота
 async def main():
-    """Основная функция запуска бота."""
     try:
         logger.info("Starting bot...")
         await dp.start_polling(bot)
