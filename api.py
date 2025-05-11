@@ -1,5 +1,7 @@
 import aiohttp
 import logging
+
+
 from config import DEEPL_API_KEY
 
 
