@@ -6,8 +6,8 @@ from config import DEEPL_API_KEY
 logger = logging.getLogger(__name__)
 
 
+# Перевод текста через DeepL API
 async def deepl_translate(text: str, target_lang: str) -> str:
-    """Перевод текста через DeepL API"""
     url = "https://api-free.deepl.com/v2/translate"
     params = {
         "auth_key": DEEPL_API_KEY,
@@ -31,8 +31,8 @@ async def deepl_translate(text: str, target_lang: str) -> str:
         return "Ошибка при переводе"
 
 
+# Определение языка текста
 def detect_language(text: str) -> str:
-    """Определение языка текста (RU/EN)"""
     try:
         latin = sum(1 for c in text if 'a' <= c.lower() <= 'z')
         cyrillic = sum(1 for c in text if 'а' <= c.lower() <= 'я')
